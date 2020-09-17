@@ -1,10 +1,11 @@
+import re
 from dataclasses import dataclass
 from typing import List
 
 import bs4
 import requests
 
-URL = 'https://www.wowprogress.com'
+URL = 'www.wowprogress.com'
 
 
 @dataclass
@@ -24,16 +25,18 @@ class Ranking:
         return cls(rank, guild, realm, progress)
 
 
-def get_rankings_page(region='world', realm=None, page: int = 0) -> requests.Response:
-    if region == 'world':
-        endpoint = f'{URL}/pve/rating'
-    else:
-        if realm:
-            endpoint = f'{URL}/pve/{region}/{realm}/rating'
-        else:
-            endpoint = f'{URL}/pve/{region}/rating'
+def get_rankings_page(region='', realm='', tier='', page: int = 0) -> requests.Response:
+    endpoint = f'{URL}/pve/{region}/{realm}/rating'
     if page > 0:
-        endpoint = f'{endpoint}/next/{page-1}/rating'
+        if tier:
+            endpoint = f'{endpoint}/next/{page-1}/rating.tier{tier}'
+        else:
+            endpoint = f'{endpoint}/next/{page-1}/rating'
+    else:
+        if tier:
+            endpoint = f'{endpoint}.tier{tier}'
+    endpoint = re.sub('/{2,}', '/', endpoint)
+    endpoint = f'https://{endpoint}'
     response = requests.get(endpoint)
     return response
 
@@ -55,8 +58,8 @@ def get_rankings_from_table(table: bs4.element.Tag) -> List[Ranking]:
     return rankings
 
 
-def get_rankings(region='world', realm=None, page: int = 0):
-    res = get_rankings_page(region=region, realm=realm, page=page)
+def get_rankings(region='', realm='', tier='', page: int = 0):
+    res = get_rankings_page(region=region, realm=realm, tier=tier, page=page)
     html = get_rankings_page_html(res)
     table = get_rankings_table(html)
     rankings = get_rankings_from_table(table)
