@@ -1,6 +1,7 @@
 import re
+import itertools as it
 from dataclasses import dataclass
-from typing import List
+from typing import Generator, List
 
 import bs4
 import requests
@@ -25,7 +26,7 @@ class Ranking:
         return cls(rank, guild, realm, progress)
 
 
-def get_rankings_page(region='', realm='', tier='', page: int = 0) -> requests.Response:
+def get_rankings_page_html(region='', realm='', tier='', page: int = 0) -> str:
     endpoint = f'{URL}/pve/{region}/{realm}/rating'
     if page > 0:
         if tier:
@@ -38,10 +39,6 @@ def get_rankings_page(region='', realm='', tier='', page: int = 0) -> requests.R
     endpoint = re.sub('/{2,}', '/', endpoint)
     endpoint = f'https://{endpoint}'
     response = requests.get(endpoint)
-    return response
-
-
-def get_rankings_page_html(response: requests.Response) -> str:
     response.raise_for_status()
     return response.text
 
@@ -58,9 +55,14 @@ def get_rankings_from_table(table: bs4.element.Tag) -> List[Ranking]:
     return rankings
 
 
-def get_rankings(region='', realm='', tier='', page: int = 0):
-    res = get_rankings_page(region=region, realm=realm, tier=tier, page=page)
-    html = get_rankings_page_html(res)
+def get_rankings_page(region='', realm='', tier='', page: int = 0):
+    html = get_rankings_page_html(region=region, realm=realm, tier=tier, page=page)
     table = get_rankings_table(html)
     rankings = get_rankings_from_table(table)
     return rankings
+
+
+def get_rankings(region: str = '', realm: str = '', tier: str = '',
+                 start_page: int = 0) -> Generator[Ranking, None, None]:
+    for page in it.count(start_page):
+        yield from get_rankings_page(region=region, realm=realm, tier=tier, page=page)
