@@ -46,6 +46,15 @@ class BatchRanking:
 
 
 def get_links(soup: bs4.BeautifulSoup) -> List[BatchRankingLink]:
+    """Parse html of export list page for available links.
+
+    Filters out non-gzipped links and properly links to be absolute URLs
+
+    Args:
+        soup: BeautifulSoup object of export page
+    Returns:
+        List of BatchRankingLinks available for download
+    """
     links = soup.find_all('a')
     links = [link.attrs.get('href') for link in links]
     urls = [f'{URL}{link}' for link in links if link.endswith('gz')]
@@ -53,6 +62,14 @@ def get_links(soup: bs4.BeautifulSoup) -> List[BatchRankingLink]:
 
 
 def list_files(session: Optional[requests.Session] = None) -> List[BatchRankingLink]:
+    """List available export files for download as BatchRankingLinks
+
+    Args:
+        session: Optionally provide an existing requests session. When doing multiple requests,
+            this is highly recommended.
+    Returns:
+        List of BatchRankingLinks available for download
+    """
     res = session.get(URL) if session else requests.get(URL)
     res.raise_for_status()
     soup = bs4.BeautifulSoup(res.text, 'html.parser')
@@ -61,6 +78,15 @@ def list_files(session: Optional[requests.Session] = None) -> List[BatchRankingL
 
 
 def download_export(link: str, session: Optional[requests.Session] = None) -> dict:
+    """Downloads gzipped-json file and returns a dict
+
+    Args:
+        link: url to gzipped json
+        session: Optionally provide an existing requests session. When doing multiple requests,
+            this is highly recommended.
+    Returns:
+        dict representation of json
+    """
     res = session.get(link) if session else requests.get(link)
     res.raise_for_status()
     unzipped = gzip.decompress(res.content)
@@ -69,6 +95,15 @@ def download_export(link: str, session: Optional[requests.Session] = None) -> di
 
 def get_export_rankings_from_link(link: BatchRankingLink,
                                   session: Optional[requests.Session] = None) -> Generator[BatchRanking, None, None]:
+    """Downloads and yields rankings from a given export link
+
+    Args:
+        link: BatchRankingLink to download
+        session: Optionally provide an existing requests session. When doing multiple requests,
+            this is highly recommended.
+    Yields:
+        BatchRankings from the downloaded export
+    """
     dl_rankings = download_export(link.export_url, session=session)
     rankings = (BatchRanking(**rank, area=link.area, realm=link.realm, tier=link.tier)
                 for rank in dl_rankings)
