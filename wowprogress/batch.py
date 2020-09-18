@@ -2,7 +2,7 @@ import json
 import gzip
 import itertools as it
 from dataclasses import dataclass
-from typing import Callable, Generator, List, Optional
+from typing import Callable, Dict, Generator, List, Optional, Union
 
 import bs4
 import requests
@@ -76,7 +76,30 @@ def get_export_rankings_from_link(link: BatchRankingLink,
 
 
 def get_export_rankings(area: str = '', realm: str = '', tier: int = 0,
-                        filter_fn: Callable[[BatchRankingLink], bool] = None):
+                        filter_fn: Callable[[BatchRankingLink], bool] = None,
+                        as_dict: bool = False) -> Generator[Union[BatchRanking, Dict], None, None]:
+    """Downloads, filters, and structures WoWProgress export rankings
+
+    WoWProgress provides bulk downloads of their rankings via https://wowprogress.com/export/ranks
+    This is the most efficient means of pulling bulk data, but is limited due to only a few tiers
+    being available.
+
+    Args:
+        area: area or region to filter for rankings, e.g. us, eu. Defaults to
+            empty string which is no filter
+        realm: realm to filter for rankings. Defaults to empty string which is no filter
+        tier: tier to pull rankings for, defaults to zero which is no filter
+        filter_fn: function that allows for complex filtering on BatchRankingLink attributes
+            for example:
+                filter_fn = lambda l: (l.area == 'us') and (l.tier >= 25)
+
+            will return all US rankings from tier 25 and later.
+
+            Providing this overrides previous area, realm, and tier args.
+        as_dict: returns results as dicts instead of BatchRanking objects. Defaults to False
+    Yields:
+        rankings that fit the filter criteria, either BatchRanking or dicts determined by as_dict
+    """
     if filter_fn is None:
         def filter_fn(link):
             return (((area == '') or (link.area == area)) and
@@ -85,4 +108,4 @@ def get_export_rankings(area: str = '', realm: str = '', tier: int = 0,
     with requests.Session() as session:
         to_download = [link for link in list_files(session) if filter_fn(link)]
         rankings = (get_export_rankings_from_link(link, session) for link in to_download)
-        yield from it.chain(*rankings)
+        yield from (ranking.to_dict() if as_dict else ranking for ranking in it.chain(*rankings))
