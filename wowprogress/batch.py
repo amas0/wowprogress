@@ -17,15 +17,15 @@ class Ranking:
     realm_rank: int
     name: str
     url: str
-    region: str
     area: str
+    realm: str
     tier: int
 
     def to_dict(self):
         return {'score': self.score, 'world_rank': self.world_rank,
                 'area_rank': self.area_rank, 'realm_rank': self.realm_rank,
-                'name': self.name, 'url': self.url, 'region': self.region,
-                'area': self.area, 'tier': self.tier}
+                'name': self.name, 'url': self.url, 'area': self.area,
+                'realm': self.realm, 'tier': self.tier}
 
 
 def get_links(soup: bs4.BeautifulSoup) -> List[str]:
@@ -52,9 +52,9 @@ def download_export(link: str) -> dict:
 def get_export_metadata(link: str) -> dict:
     file_name = link.split('/')[-1]
     file_name = file_name.rstrip('.json.gz')
-    region, area, tierstr = file_name.split('_')
+    area, realm, tierstr = file_name.split('_')
     tier = int(tierstr.lstrip('tier'))
-    return {'region': region, 'area': area, 'tier': tier}
+    return {'area': area, 'realm': realm, 'tier': tier}
 
 
 def get_export_rankings(link: str) -> List[Ranking]:
