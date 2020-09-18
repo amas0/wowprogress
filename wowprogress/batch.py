@@ -10,7 +10,23 @@ URL = 'https://wowprogress.com/export/ranks/'
 
 
 @dataclass
-class Ranking:
+class BatchRankingLink:
+    area: str
+    realm: str
+    tier: int
+    export_url: str
+
+    @classmethod
+    def from_url(cls, url: str):
+        file_name = url.split('/')[-1]
+        file_name = file_name.rstrip('.json.gz')
+        area, realm, tier_str = file_name.split('_')
+        tier = int(tier_str.lstrip('tier'))
+        return cls(area=area, realm=realm, tier=tier, export_url=url)
+
+
+@dataclass
+class BatchRanking:
     score: int
     world_rank: int
     area_rank: int
@@ -28,13 +44,14 @@ class Ranking:
                 'realm': self.realm, 'tier': self.tier}
 
 
-def get_links(soup: bs4.BeautifulSoup) -> List[str]:
+def get_links(soup: bs4.BeautifulSoup) -> List[BatchRankingLink]:
     links = soup.find_all('a')
     links = [link.attrs.get('href') for link in links]
-    return [f'{URL}{link}' for link in links if link.endswith('gz')]
+    urls = [f'{URL}{link}' for link in links if link.endswith('gz')]
+    return [BatchRankingLink.from_url(url) for url in urls]
 
 
-def list_files() -> List[str]:
+def list_files() -> List[BatchRankingLink]:
     res = requests.get(URL)
     res.raise_for_status()
     soup = bs4.BeautifulSoup(res.text, 'html.parser')
@@ -49,16 +66,8 @@ def download_export(link: str) -> dict:
     return json.loads(unzipped)
 
 
-def get_export_metadata(link: str) -> dict:
-    file_name = link.split('/')[-1]
-    file_name = file_name.rstrip('.json.gz')
-    area, realm, tierstr = file_name.split('_')
-    tier = int(tierstr.lstrip('tier'))
-    return {'area': area, 'realm': realm, 'tier': tier}
-
-
-def get_export_rankings(link: str) -> List[Ranking]:
-    em = get_export_metadata(link)
-    dl_rankings = download_export(link)
-    rankings = [Ranking(**rank, **em) for rank in dl_rankings]
+def get_export_rankings(link: BatchRankingLink) -> List[BatchRanking]:
+    dl_rankings = download_export(link.export_url)
+    rankings = [BatchRanking(**rank, area=link.area, realm=link.realm, tier=link.tier)
+                for rank in dl_rankings]
     return rankings
